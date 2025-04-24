@@ -1,0 +1,670 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "id": "dab00454",
+   "metadata": {},
+   "source": [
+    "# **vLLM: High-Performance LLM Serving**\n",
+    "\n",
+    "## **What is vLLM?**\n",
+    "\n",
+    "vLLM is an open-source library designed for high-throughput and memory-efficient serving of Large Language Models (LLMs). It implements optimized memory management techniques to maximize inference speed while minimizing resource usage.\n",
+    "\n",
+    "## **Key Features**\n",
+    "\n",
+    "- **PagedAttention**: Innovative memory management technique that outperforms traditional implementations\n",
+    "- **Continuous batching**: Dynamically processes requests without waiting for batch completion\n",
+    "- **Tensor parallelism**: Distributes model weights across multiple GPUs\n",
+    "- **Quantization support**: Runs models in lower precision formats (INT8, FP16, etc.)\n",
+    "- **OpenAI-compatible API**: Drop-in replacement for OpenAI's API\n",
+    "\n",
+    "## **Performance Benefits**\n",
+    "\n",
+    "- Up to 24x higher throughput compared to standard implementations\n",
+    "- Significantly reduced latency for concurrent requests\n",
+    "- Efficient memory usage enabling larger context lengths\n",
+    "- Seamless scaling across multiple GPUs\n",
+    "\n",
+    "## **Supported Architectures**\n",
+    "\n",
+    "- Supports most popular model families:\n",
+    "  - Llama, Llama 2, Mistral, CodeLlama\n",
+    "  - Mixtral, Falcon, MPT, Gemma\n",
+    "  - Phi, Qwen, BLOOM, and more\n",
+    "\n",
+    "## **Integration Options**\n",
+    "\n",
+    "- **Python API**: Direct integration into Python applications\n",
+    "- **REST API**: OpenAI-compatible endpoint for language-agnostic use\n",
+    "- **Framework integrations**: Works with LangChain, LlamaIndex, etc.\n",
+    "\n",
+    "\n",
+    "## **vLLM can work with distributed GPUs in several ways:**\n",
+    "\n",
+    "### **Tensor Parallelism:**\n",
+    "\n",
+    "  - Splits model weights across multiple GPUs on a single machine\n",
+    "  - Configured using the --tensor-parallel-size parameter\n",
+    "  - Each layer's computation is distributed across GPUs\n",
+    "\n",
+    "\n",
+    "### **Pipeline Parallelism:**\n",
+    "\n",
+    "  - Splits model layers across different GPUs\n",
+    "  - Different from tensor parallelism which splits individual layers\n",
+    "  - Useful for extremely large models that don't fit on a single GPU even with tensor parallelism\n",
+    "\n",
+    "\n",
+    "### **Multi-Node Distributed Inference:**\n",
+    "\n",
+    "  - vLLM supports distributing models across multiple machines\n",
+    "  - Uses Ray as the backend for distributed computing\n",
+    "  - Can combine both tensor and pipeline parallelism across nodes\n",
+    "\n",
+    "## **Usage Example**\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "09c966dc",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Starting vLLM server\n",
+    "# python -m vllm.entrypoints.openai.api_server --model mistralai/Mistral-7B-Instruct-v0.3\n",
+    "\n",
+    "# Using with OpenAI client\n",
+    "from openai import OpenAI\n",
+    "\n",
+    "client = OpenAI(base_url=\"http://localhost:8000/v1\", api_key=\"EMPTY\")\n",
+    "response = client.chat.completions.create(\n",
+    "    model=\"mistralai/Mistral-7B-Instruct-v0.3\",\n",
+    "    messages=[{\"role\": \"user\", \"content\": \"Hello, how are you?\"}]\n",
+    ")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "f66313ed",
+   "metadata": {
+    "vscode": {
+     "languageId": "powershell"
+    }
+   },
+   "source": [
+    "## **When to Use vLLM**\n",
+    "\n",
+    "- Serving LLMs in production environments\n",
+    "- Running local models with near cloud-service performance\n",
+    "- Building applications that require high throughput\n",
+    "- Handling concurrent user requests efficiently"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "36d0d196",
+   "metadata": {},
+   "source": [
+    "# **Running Local LLMs with vLLM and OpenAI API Compatibility**\n",
+    "\n",
+    "This notebook documents the process of running local large language models using vLLM with OpenAI API compatibility.\n",
+    "\n",
+    "## **Setup Process**\n",
+    "\n",
+    "### 1. **Installing vLLM**\n",
+    "\n",
+    "\n",
+    "First, ensure vLLM is installed with the appropriate CUDA version for your system:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "a2eb1f96",
+   "metadata": {
+    "vscode": {
+     "languageId": "powershell"
+    }
+   },
+   "outputs": [],
+   "source": [
+    "! pip install vllm\n",
+    "! pip install \"vllm[triton]\" --extra-index-url https://download.pytorch.org/whl/cu124 <-- user your cuda version\n",
+    "# Or with specific CUDA version\n",
+    "# pip install vllm-with-cuda11x  # Example for CUDA 11.x\n",
+    "# !pip install --upgrade --quiet  vllm -q # upgrade vllm if needed\n",
+    "# kill -9 1068752  # to kill the process if needed"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "5784c4f4",
+   "metadata": {},
+   "source": [
+    "## **With LangChain Integration**\n",
+    "\n",
+    "When using with LangChain, you can connect as follows:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "id": "8db685d8",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "/home/omjadhav/miniconda3/envs/resumeAI/lib/python3.9/site-packages/tqdm/auto.py:21: TqdmWarning: IProgress not found. Please update jupyter and ipywidgets. See https://ipywidgets.readthedocs.io/en/stable/user_install.html\n",
+      "  from .autonotebook import tqdm as notebook_tqdm\n"
+     ]
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "INFO 04-24 16:08:55 [__init__.py:239] Automatically detected platform cuda.\n"
+     ]
+    },
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "2025-04-24 16:08:56,559\tINFO util.py:154 -- Missing packages: ['ipywidgets']. Run `pip install -U ipywidgets`, then restart the notebook server for rich notebook output.\n"
+     ]
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "INFO 04-24 16:09:08 [config.py:689] This model supports multiple tasks: {'reward', 'classify', 'score', 'embed', 'generate'}. Defaulting to 'generate'.\n",
+      "INFO 04-24 16:09:09 [config.py:1901] Chunked prefill is enabled with max_num_batched_tokens=8192.\n"
+     ]
+    },
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "/home/omjadhav/miniconda3/envs/resumeAI/lib/python3.9/site-packages/vllm/transformers_utils/tokenizer_group/tokenizer_group.py:25: FutureWarning: It is strongly recommended to run mistral models with `--tokenizer-mode \"mistral\"` to ensure correct encoding and decoding.\n",
+      "  self.tokenizer = get_tokenizer(self.tokenizer_id, **tokenizer_config)\n"
+     ]
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "INFO 04-24 16:09:11 [core.py:61] Initializing a V1 LLM engine (v0.8.4) with config: model='mistralai/Mistral-7B-Instruct-v0.3', speculative_config=None, tokenizer='mistralai/Mistral-7B-Instruct-v0.3', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, override_neuron_config=None, tokenizer_revision=None, trust_remote_code=True, dtype=torch.bfloat16, max_seq_len=32768, download_dir=None, load_format=auto, tensor_parallel_size=1, pipeline_parallel_size=1, disable_custom_all_reduce=False, quantization=None, enforce_eager=False, kv_cache_dtype=auto,  device_config=cuda, decoding_config=DecodingConfig(guided_decoding_backend='auto', reasoning_backend=None), observability_config=ObservabilityConfig(show_hidden_metrics=False, otlp_traces_endpoint=None, collect_model_forward_time=False, collect_model_execute_time=False), seed=None, served_model_name=mistralai/Mistral-7B-Instruct-v0.3, num_scheduler_steps=1, multi_step_stream_outputs=True, enable_prefix_caching=True, chunked_prefill_enabled=True, use_async_output_proc=True, disable_mm_preprocessor_cache=False, mm_processor_kwargs=None, pooler_config=None, compilation_config={\"level\":3,\"custom_ops\":[\"none\"],\"splitting_ops\":[\"vllm.unified_attention\",\"vllm.unified_attention_with_output\"],\"use_inductor\":true,\"compile_sizes\":[],\"use_cudagraph\":true,\"cudagraph_num_of_warmups\":1,\"cudagraph_capture_sizes\":[512,504,496,488,480,472,464,456,448,440,432,424,416,408,400,392,384,376,368,360,352,344,336,328,320,312,304,296,288,280,272,264,256,248,240,232,224,216,208,200,192,184,176,168,160,152,144,136,128,120,112,104,96,88,80,72,64,56,48,40,32,24,16,8,4,2,1],\"max_capture_size\":512}\n",
+      "WARNING 04-24 16:09:12 [utils.py:2444] Methods determine_num_available_blocks,device_config,get_cache_block_size_bytes,initialize_cache not implemented in <vllm.v1.worker.gpu_worker.Worker object at 0x15498f1d0bb0>\n",
+      "INFO 04-24 16:09:12 [parallel_state.py:959] rank 0 in world size 1 is assigned as DP rank 0, PP rank 0, TP rank 0\n",
+      "INFO 04-24 16:09:12 [cuda.py:221] Using Flash Attention backend on V1 engine.\n",
+      "INFO 04-24 16:09:12 [gpu_model_runner.py:1276] Starting to load model mistralai/Mistral-7B-Instruct-v0.3...\n",
+      "WARNING 04-24 16:09:14 [topk_topp_sampler.py:69] FlashInfer is not available. Falling back to the PyTorch-native implementation of top-p & top-k sampling. For the best performance, please install FlashInfer.\n",
+      "INFO 04-24 16:09:15 [weight_utils.py:265] Using model weights format ['*.safetensors']\n"
+     ]
+    },
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "Loading safetensors checkpoint shards:   0% Completed | 0/3 [00:00<?, ?it/s]\n",
+      "Loading safetensors checkpoint shards:  33% Completed | 1/3 [00:03<00:06,  3.00s/it]\n",
+      "Loading safetensors checkpoint shards:  67% Completed | 2/3 [00:06<00:03,  3.20s/it]\n",
+      "Loading safetensors checkpoint shards: 100% Completed | 3/3 [00:09<00:00,  3.05s/it]\n",
+      "Loading safetensors checkpoint shards: 100% Completed | 3/3 [00:09<00:00,  3.07s/it]\n",
+      "\n"
+     ]
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "INFO 04-24 16:09:25 [loader.py:458] Loading weights took 9.28 seconds\n",
+      "INFO 04-24 16:09:26 [gpu_model_runner.py:1291] Model loading took 13.5084 GiB and 12.519891 seconds\n",
+      "INFO 04-24 16:09:39 [backends.py:416] Using cache directory: /home/omjadhav/.cache/vllm/torch_compile_cache/eaff6eae66/rank_0_0 for vLLM's torch.compile\n",
+      "INFO 04-24 16:09:39 [backends.py:426] Dynamo bytecode transform time: 13.40 s\n",
+      "INFO 04-24 16:09:40 [backends.py:115] Directly load the compiled graph for shape None from the cache\n",
+      "INFO 04-24 16:09:52 [monitor.py:33] torch.compile takes 13.40 s in total\n",
+      "INFO 04-24 16:09:56 [kv_cache_utils.py:634] GPU KV cache size: 454,288 tokens\n",
+      "INFO 04-24 16:09:56 [kv_cache_utils.py:637] Maximum concurrency for 32,768 tokens per request: 13.86x\n",
+      "INFO 04-24 16:10:23 [gpu_model_runner.py:1626] Graph capturing finished in 28 secs, took 0.52 GiB\n",
+      "INFO 04-24 16:10:23 [core.py:163] init engine (profile, create kv cache, warmup model) took 57.75 seconds\n",
+      "INFO 04-24 16:10:24 [core_client.py:435] Core engine process 0 ready.\n"
+     ]
+    },
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "Processed prompts: 100%|██████████| 1/1 [00:03<00:00,  3.34s/it, est. speed input: 2.39 toks/s, output: 41.28 toks/s]"
+     ]
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "\n",
+      "\n",
+      "Paris is the capital of France. It is located in the north-central part of the country and is the most populous city in France, as well as the most populous city in the European Union. Paris is known for its iconic landmarks, such as the Eiffel Tower, the Louvre Museum, and Notre-Dame Cathedral. It is also a major cultural and artistic center, with a vibrant arts scene and a rich history. Paris is located on the Seine River and is known for its beautiful architecture, gardens, and parks. It is a popular tourist destination and is also a major hub for international trade and finance.\n"
+     ]
+    },
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "\n"
+     ]
+    }
+   ],
+   "source": [
+    "from langchain_community.llms import VLLM\n",
+    "\n",
+    "llm = VLLM(\n",
+    "    model=\"mistralai/Mistral-7B-Instruct-v0.3\",\n",
+    "    trust_remote_code=True,  # mandatory for hf models\n",
+    "    max_new_tokens=1000,\n",
+    "    top_k=10,\n",
+    "    top_p=0.95,\n",
+    "    temperature=0.8,\n",
+    ")\n",
+    "\n",
+    "print(llm.invoke(\"What is the capital of France ?\"))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "e535ec89",
+   "metadata": {},
+   "source": [
+    "## **Integrate the model in an LLMChain**"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "id": "bbc9f42a",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "/tmp/ipykernel_1104369/4142764149.py:10: LangChainDeprecationWarning: The class `LLMChain` was deprecated in LangChain 0.1.17 and will be removed in 1.0. Use :meth:`~RunnableSequence, e.g., `prompt | llm`` instead.\n",
+      "  llm_chain = LLMChain(prompt=prompt, llm=llm)\n",
+      "Processed prompts: 100%|██████████| 1/1 [00:02<00:00,  2.62s/it, est. speed input: 12.23 toks/s, output: 73.38 toks/s]"
+     ]
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "{'question': 'Who was the US president in the year the first Pokemon game was released?', 'text': '\\n\\n1. The first Pokemon game, \"Pokemon Red and Green,\" was released in Japan on February 27, 1996.\\n\\n2. To find out who the U.S. president was at that time, we need to know that the United States is 5 hours behind Japan. So, February 27, 1996, in the U.S., would be February 26, 1996.\\n\\n3. President Bill Clinton was the U.S. president from January 20, 1993, to January 20, 2001.\\n\\n4. Therefore, on February 26, 1996, Bill Clinton was the U.S. president.\\n\\nSo, the U.S. president in the year the first Pokemon game was released was President Bill Clinton.'}\n"
+     ]
+    },
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "\n"
+     ]
+    }
+   ],
+   "source": [
+    "from langchain.chains import LLMChain\n",
+    "from langchain_core.prompts import PromptTemplate\n",
+    "\n",
+    "template = \"\"\"Question: {question}\n",
+    "\n",
+    "Answer: Let's think step by step.\"\"\"\n",
+    "\n",
+    "prompt = PromptTemplate.from_template(template)\n",
+    "\n",
+    "llm_chain = LLMChain(prompt=prompt, llm=llm)\n",
+    "\n",
+    "question = \"Who was the US president in the year the first Pokemon game was released?\"\n",
+    "\n",
+    "print(llm_chain.invoke(question))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "f36cb817",
+   "metadata": {},
+   "source": [
+    "## **Distributed Inference**\n",
+    "\n",
+    "vLLM supports distributed tensor-parallel inference and serving.\n",
+    "\n",
+    "To run multi-GPU inference with the LLM class, set the tensor_parallel_size argument to the number of GPUs you want to use. For example, to run inference on 2 GPUs"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "id": "5bea9a57",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "/home/omjadhav/miniconda3/envs/resumeAI/lib/python3.9/site-packages/tqdm/auto.py:21: TqdmWarning: IProgress not found. Please update jupyter and ipywidgets. See https://ipywidgets.readthedocs.io/en/stable/user_install.html\n",
+      "  from .autonotebook import tqdm as notebook_tqdm\n"
+     ]
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "INFO 04-24 16:16:39 [__init__.py:239] Automatically detected platform cuda.\n"
+     ]
+    },
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "2025-04-24 16:16:43,116\tINFO util.py:154 -- Missing packages: ['ipywidgets']. Run `pip install -U ipywidgets`, then restart the notebook server for rich notebook output.\n"
+     ]
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "INFO 04-24 16:16:59 [config.py:689] This model supports multiple tasks: {'embed', 'reward', 'classify', 'generate', 'score'}. Defaulting to 'generate'.\n",
+      "INFO 04-24 16:17:00 [config.py:1713] Defaulting to use mp for distributed inference\n",
+      "INFO 04-24 16:17:00 [config.py:1901] Chunked prefill is enabled with max_num_batched_tokens=8192.\n"
+     ]
+    },
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "/home/omjadhav/miniconda3/envs/resumeAI/lib/python3.9/site-packages/vllm/transformers_utils/tokenizer_group/tokenizer_group.py:25: FutureWarning: It is strongly recommended to run mistral models with `--tokenizer-mode \"mistral\"` to ensure correct encoding and decoding.\n",
+      "  self.tokenizer = get_tokenizer(self.tokenizer_id, **tokenizer_config)\n"
+     ]
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "INFO 04-24 16:17:02 [core.py:61] Initializing a V1 LLM engine (v0.8.4) with config: model='mistralai/Mistral-7B-Instruct-v0.3', speculative_config=None, tokenizer='mistralai/Mistral-7B-Instruct-v0.3', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, override_neuron_config=None, tokenizer_revision=None, trust_remote_code=True, dtype=torch.bfloat16, max_seq_len=32768, download_dir=None, load_format=auto, tensor_parallel_size=2, pipeline_parallel_size=1, disable_custom_all_reduce=False, quantization=None, enforce_eager=False, kv_cache_dtype=auto,  device_config=cuda, decoding_config=DecodingConfig(guided_decoding_backend='auto', reasoning_backend=None), observability_config=ObservabilityConfig(show_hidden_metrics=False, otlp_traces_endpoint=None, collect_model_forward_time=False, collect_model_execute_time=False), seed=None, served_model_name=mistralai/Mistral-7B-Instruct-v0.3, num_scheduler_steps=1, multi_step_stream_outputs=True, enable_prefix_caching=True, chunked_prefill_enabled=True, use_async_output_proc=True, disable_mm_preprocessor_cache=False, mm_processor_kwargs=None, pooler_config=None, compilation_config={\"level\":3,\"custom_ops\":[\"none\"],\"splitting_ops\":[\"vllm.unified_attention\",\"vllm.unified_attention_with_output\"],\"use_inductor\":true,\"compile_sizes\":[],\"use_cudagraph\":true,\"cudagraph_num_of_warmups\":1,\"cudagraph_capture_sizes\":[512,504,496,488,480,472,464,456,448,440,432,424,416,408,400,392,384,376,368,360,352,344,336,328,320,312,304,296,288,280,272,264,256,248,240,232,224,216,208,200,192,184,176,168,160,152,144,136,128,120,112,104,96,88,80,72,64,56,48,40,32,24,16,8,4,2,1],\"max_capture_size\":512}\n",
+      "WARNING 04-24 16:17:02 [multiproc_worker_utils.py:306] Reducing Torch parallelism from 48 threads to 1 to avoid unnecessary CPU contention. Set OMP_NUM_THREADS in the external environment to tune this value as needed.\n",
+      "INFO 04-24 16:17:02 [shm_broadcast.py:264] vLLM message queue communication handle: Handle(local_reader_ranks=[0, 1], buffer_handle=(2, 10485760, 10, 'psm_e8a3500c'), local_subscribe_addr='ipc:///tmp/3a767474-ed44-48d7-bd89-f96906524d6b', remote_subscribe_addr=None, remote_addr_ipv6=False)\n",
+      "WARNING 04-24 16:17:04 [utils.py:2444] Methods determine_num_available_blocks,device_config,get_cache_block_size_bytes,initialize_cache not implemented in <vllm.v1.worker.gpu_worker.Worker object at 0x14ebe2fa3910>\n",
+      "\u001b[1;36m(VllmWorker rank=0 pid=1106505)\u001b[0;0m INFO 04-24 16:17:04 [shm_broadcast.py:264] vLLM message queue communication handle: Handle(local_reader_ranks=[0], buffer_handle=(1, 10485760, 10, 'psm_a4120c6a'), local_subscribe_addr='ipc:///tmp/2394a62e-a0c1-4ca8-8984-3c6f5691e3fd', remote_subscribe_addr=None, remote_addr_ipv6=False)\n",
+      "WARNING 04-24 16:17:05 [utils.py:2444] Methods determine_num_available_blocks,device_config,get_cache_block_size_bytes,initialize_cache not implemented in <vllm.v1.worker.gpu_worker.Worker object at 0x14ebe2f42ee0>\n",
+      "\u001b[1;36m(VllmWorker rank=1 pid=1106532)\u001b[0;0m INFO 04-24 16:17:05 [shm_broadcast.py:264] vLLM message queue communication handle: Handle(local_reader_ranks=[0], buffer_handle=(1, 10485760, 10, 'psm_1bde20b7'), local_subscribe_addr='ipc:///tmp/f5608e6f-d161-4ac9-8427-d019088e758b', remote_subscribe_addr=None, remote_addr_ipv6=False)\n",
+      "\u001b[1;36m(VllmWorker rank=0 pid=1106505)\u001b[0;0m \u001b[1;36m(VllmWorker rank=1 pid=1106532)\u001b[0;0m INFO 04-24 16:17:06 [utils.py:993] Found nccl from library libnccl.so.2\n",
+      "INFO 04-24 16:17:06 [utils.py:993] Found nccl from library libnccl.so.2\n",
+      "\u001b[1;36m(VllmWorker rank=0 pid=1106505)\u001b[0;0m \u001b[1;36m(VllmWorker rank=1 pid=1106532)\u001b[0;0m INFO 04-24 16:17:06 [pynccl.py:69] vLLM is using nccl==2.21.5\n",
+      "INFO 04-24 16:17:06 [pynccl.py:69] vLLM is using nccl==2.21.5\n",
+      "\u001b[1;36m(VllmWorker rank=1 pid=1106532)\u001b[0;0m \u001b[1;36m(VllmWorker rank=0 pid=1106505)\u001b[0;0m INFO 04-24 16:17:07 [custom_all_reduce_utils.py:244] reading GPU P2P access cache from /home/omjadhav/.cache/vllm/gpu_p2p_access_cache_for_0,1.json\n",
+      "INFO 04-24 16:17:07 [custom_all_reduce_utils.py:244] reading GPU P2P access cache from /home/omjadhav/.cache/vllm/gpu_p2p_access_cache_for_0,1.json\n",
+      "\u001b[1;36m(VllmWorker rank=0 pid=1106505)\u001b[0;0m INFO 04-24 16:17:07 [shm_broadcast.py:264] vLLM message queue communication handle: Handle(local_reader_ranks=[1], buffer_handle=(1, 4194304, 6, 'psm_2bc6e0ca'), local_subscribe_addr='ipc:///tmp/7e9dbfee-ccf8-4a48-92e0-8154853c2083', remote_subscribe_addr=None, remote_addr_ipv6=False)\n",
+      "\u001b[1;36m(VllmWorker rank=0 pid=1106505)\u001b[0;0m \u001b[1;36m(VllmWorker rank=1 pid=1106532)\u001b[0;0m INFO 04-24 16:17:07 [parallel_state.py:959] rank 0 in world size 2 is assigned as DP rank 0, PP rank 0, TP rank 0\n",
+      "INFO 04-24 16:17:07 [parallel_state.py:959] rank 1 in world size 2 is assigned as DP rank 0, PP rank 0, TP rank 1\n",
+      "\u001b[1;36m(VllmWorker rank=0 pid=1106505)\u001b[0;0m \u001b[1;36m(VllmWorker rank=1 pid=1106532)\u001b[0;0m INFO 04-24 16:17:07 [cuda.py:221] Using Flash Attention backend on V1 engine.\n",
+      "INFO 04-24 16:17:07 [cuda.py:221] Using Flash Attention backend on V1 engine.\n",
+      "\u001b[1;36m(VllmWorker rank=1 pid=1106532)\u001b[0;0m \u001b[1;36m(VllmWorker rank=0 pid=1106505)\u001b[0;0m INFO 04-24 16:17:07 [gpu_model_runner.py:1276] Starting to load model mistralai/Mistral-7B-Instruct-v0.3...\n",
+      "INFO 04-24 16:17:07 [gpu_model_runner.py:1276] Starting to load model mistralai/Mistral-7B-Instruct-v0.3...\n",
+      "\u001b[1;36m(VllmWorker rank=1 pid=1106532)\u001b[0;0m WARNING 04-24 16:17:09 [topk_topp_sampler.py:69] FlashInfer is not available. Falling back to the PyTorch-native implementation of top-p & top-k sampling. For the best performance, please install FlashInfer.\n",
+      "\u001b[1;36m(VllmWorker rank=0 pid=1106505)\u001b[0;0m WARNING 04-24 16:17:09 [topk_topp_sampler.py:69] FlashInfer is not available. Falling back to the PyTorch-native implementation of top-p & top-k sampling. For the best performance, please install FlashInfer.\n",
+      "\u001b[1;36m(VllmWorker rank=0 pid=1106505)\u001b[0;0m INFO 04-24 16:17:10 [weight_utils.py:265] Using model weights format ['*.safetensors']\n",
+      "\u001b[1;36m(VllmWorker rank=1 pid=1106532)\u001b[0;0m INFO 04-24 16:17:10 [weight_utils.py:265] Using model weights format ['*.safetensors']\n"
+     ]
+    },
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "Loading safetensors checkpoint shards:   0% Completed | 0/3 [00:00<?, ?it/s]\n",
+      "Loading safetensors checkpoint shards:  33% Completed | 1/3 [00:02<00:05,  2.73s/it]\n",
+      "Loading safetensors checkpoint shards:  67% Completed | 2/3 [00:04<00:02,  2.02s/it]\n"
+     ]
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "\u001b[1;36m(VllmWorker rank=1 pid=1106532)\u001b[0;0m INFO 04-24 16:17:16 [loader.py:458] Loading weights took 5.00 seconds\n"
+     ]
+    },
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "Loading safetensors checkpoint shards: 100% Completed | 3/3 [00:05<00:00,  1.72s/it]\n",
+      "Loading safetensors checkpoint shards: 100% Completed | 3/3 [00:05<00:00,  1.88s/it]\n",
+      "\u001b[1;36m(VllmWorker rank=0 pid=1106505)\u001b[0;0m \n"
+     ]
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "\u001b[1;36m(VllmWorker rank=0 pid=1106505)\u001b[0;0m INFO 04-24 16:17:16 [loader.py:458] Loading weights took 5.72 seconds\n",
+      "\u001b[1;36m(VllmWorker rank=1 pid=1106532)\u001b[0;0m INFO 04-24 16:17:16 [gpu_model_runner.py:1291] Model loading took 6.7584 GiB and 8.649958 seconds\n",
+      "\u001b[1;36m(VllmWorker rank=0 pid=1106505)\u001b[0;0m INFO 04-24 16:17:16 [gpu_model_runner.py:1291] Model loading took 6.7584 GiB and 8.827003 seconds\n",
+      "\u001b[1;36m(VllmWorker rank=0 pid=1106505)\u001b[0;0m INFO 04-24 16:17:25 [backends.py:416] Using cache directory: /home/omjadhav/.cache/vllm/torch_compile_cache/778a2b3212/rank_0_0 for vLLM's torch.compile\n",
+      "\u001b[1;36m(VllmWorker rank=0 pid=1106505)\u001b[0;0m INFO 04-24 16:17:25 [backends.py:426] Dynamo bytecode transform time: 8.82 s\n",
+      "\u001b[1;36m(VllmWorker rank=1 pid=1106532)\u001b[0;0m INFO 04-24 16:17:25 [backends.py:416] Using cache directory: /home/omjadhav/.cache/vllm/torch_compile_cache/778a2b3212/rank_1_0 for vLLM's torch.compile\n",
+      "\u001b[1;36m(VllmWorker rank=1 pid=1106532)\u001b[0;0m INFO 04-24 16:17:25 [backends.py:426] Dynamo bytecode transform time: 8.85 s\n",
+      "\u001b[1;36m(VllmWorker rank=0 pid=1106505)\u001b[0;0m INFO 04-24 16:17:30 [backends.py:132] Cache the graph of shape None for later use\n",
+      "\u001b[1;36m(VllmWorker rank=1 pid=1106532)\u001b[0;0m INFO 04-24 16:17:30 [backends.py:132] Cache the graph of shape None for later use\n",
+      "\u001b[1;36m(VllmWorker rank=0 pid=1106505)\u001b[0;0m INFO 04-24 16:17:57 [backends.py:144] Compiling a graph for general shape takes 31.01 s\n",
+      "\u001b[1;36m(VllmWorker rank=1 pid=1106532)\u001b[0;0m INFO 04-24 16:17:58 [backends.py:144] Compiling a graph for general shape takes 31.49 s\n",
+      "\u001b[1;36m(VllmWorker rank=0 pid=1106505)\u001b[0;0m INFO 04-24 16:18:12 [monitor.py:33] torch.compile takes 39.83 s in total\n",
+      "\u001b[1;36m(VllmWorker rank=1 pid=1106532)\u001b[0;0m INFO 04-24 16:18:12 [monitor.py:33] torch.compile takes 40.34 s in total\n",
+      "INFO 04-24 16:18:13 [kv_cache_utils.py:634] GPU KV cache size: 1,014,288 tokens\n",
+      "INFO 04-24 16:18:13 [kv_cache_utils.py:637] Maximum concurrency for 32,768 tokens per request: 30.95x\n",
+      "INFO 04-24 16:18:13 [kv_cache_utils.py:634] GPU KV cache size: 1,014,288 tokens\n",
+      "INFO 04-24 16:18:13 [kv_cache_utils.py:637] Maximum concurrency for 32,768 tokens per request: 30.95x\n",
+      "\u001b[1;36m(VllmWorker rank=0 pid=1106505)\u001b[0;0m INFO 04-24 16:18:42 [custom_all_reduce.py:195] Registering 4355 cuda graph addresses\n",
+      "\u001b[1;36m(VllmWorker rank=1 pid=1106532)\u001b[0;0m INFO 04-24 16:18:43 [custom_all_reduce.py:195] Registering 4355 cuda graph addresses\n",
+      "\u001b[1;36m(VllmWorker rank=1 pid=1106532)\u001b[0;0m INFO 04-24 16:18:43 [gpu_model_runner.py:1626] Graph capturing finished in 29 secs, took 0.53 GiB\n",
+      "\u001b[1;36m(VllmWorker rank=0 pid=1106505)\u001b[0;0m INFO 04-24 16:18:43 [gpu_model_runner.py:1626] Graph capturing finished in 30 secs, took 0.53 GiB\n",
+      "INFO 04-24 16:18:43 [core.py:163] init engine (profile, create kv cache, warmup model) took 86.98 seconds\n",
+      "INFO 04-24 16:18:43 [core_client.py:435] Core engine process 0 ready.\n"
+     ]
+    },
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "Processed prompts: 100%|██████████| 1/1 [00:04<00:00,  4.80s/it, est. speed input: 1.67 toks/s, output: 106.78 toks/s]\n"
+     ]
+    },
+    {
+     "data": {
+      "text/plain": [
+       "' Are we headed towards a future where machines will take over the world and robots will enslave our race? Or will it be a bright future where AI, being our close companions, will help us achieving things we never thought were possible? Let’s discuss the surprising predictions made by experts and entrepreneurs. There are two possible futures for AI: optimization or superintelligence.\\n\\nOptimization AI is what we already have today. It’s the AI that powers our cars, our smartphones, and the Alexas in our living rooms. It’s designed to respond to specific tasks and, as you train it with more information, it gets better at completing those tasks. It’s great at playing chess, winning Jeopardy!, and analyzing medicine, but it’s not going to take over the world.\\n\\nSuperintelligence AI would be different. This AI would have human-level intelligence and the ability to continue learning and improving without human intervention. While we are just starting to see the beginning of superintelligent AI in the lab, that raises questions of what it could do to humans.\\n\\nFor example, a social media dystopia that could manipulate elections and spread lies at a rate that humans cannot track. Google co-founder and AI visionary, Ray Kurzweil, predicted that by 2045 humanity and superintelligent machines would coexist peacefully. He believes that the AI creation process will follow a ‘law of accelerating returns’ where technology will be doubling in power every 18 months, and by 2045 it will exceed human intelligence.\\n\\nHowever, Tesla and SpaceX CEO Elon Musk has a very different view of the future of AI. Musk has said that he believes that the superintelligence era – when AI can learn faster than humans – is only a few years away and that theStatus Quo will end in calamity if we don’t take action. He has warned about the possible outcome of arming autonomous weapons with AI technology.\\n\\nIn August of 2017, Musk published an op-ed in the New York Times expressing his concerns. Musk has donated millions of dollars to research on AI safety to quantify the risk, and to advocate for safety standards and regulations. Musk has also been a vocal critic of the idea that humans can control superintelligent machines, asserting that'"
+      ]
+     },
+     "execution_count": 1,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "from langchain_community.llms import VLLM\n",
+    "\n",
+    "llm = VLLM(\n",
+    "    model=\"mistralai/Mistral-7B-Instruct-v0.3\",\n",
+    "    tensor_parallel_size=2,\n",
+    "    trust_remote_code=True,  # mandatory for hf models\n",
+    ")\n",
+    "\n",
+    "llm.invoke(\"What is the future of AI?\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "77594186",
+   "metadata": {},
+   "source": [
+    "## **Quantization**\n",
+    "\n",
+    "vLLM supports awq quantization. To enable it, pass quantization to vllm_kwargs."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "23fb08cc",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "llm_q = VLLM(\n",
+    "    model=\"TheBloke/Llama-2-7b-Chat-AWQ\",  # <--- requres quantized model \n",
+    "    trust_remote_code=True,\n",
+    "    max_new_tokens=512,\n",
+    "    vllm_kwargs={\"quantization\": \"awq\"}, # <--- quantization options will throw error if quantized model is not used\n",
+    ")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "7d3fa6c8",
+   "metadata": {},
+   "source": [
+    "## **OpenAI-Compatible Server**\n",
+    "\n",
+    "vLLM can be deployed as a server that mimics the OpenAI API protocol. This allows vLLM to be used as a drop-in replacement for applications using OpenAI API.\n",
+    "\n",
+    "This server can be queried in the same format as OpenAI API."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "1df5ef03",
+   "metadata": {
+    "vscode": {
+     "languageId": "powershell"
+    }
+   },
+   "outputs": [],
+   "source": [
+    "# first run the server\n",
+    "\n",
+    "!python -m vllm.entrypoints.openai.api_server \\\n",
+    "  --model /your/model/path \\ # path to your model or model name if downloaded from huggingface it will look in ~/.cache/huggingface\n",
+    "  --tensor-parallel-size 2 \\  # number of GPUs you want to use for tensor parallelism\n",
+    "  --max-model-len 8192 \\      # if your prompts+responses are long\n",
+    "  --disable-log-requests \\    # speeds up inference by reducing logging overhead\n",
+    "  --gpu-memory-utilization 0.95 \\  # safely max out VRAM usage\n",
+    "  --max-num-batched-tokens 4096 \\  # increases batching capacity per request (depending on your workload)\n",
+    "  --enforce-eager \\           # forces eager mode, can reduce latency slightly\n",
+    "  --seed 42                   # for reproducible runs\n",
+    "\n",
+    "# You can add or remove flags as needed\n",
+    "\n",
+    "curl http://localhost:8000/v1/models # to check if the server is running and get the model name\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 16,
+   "id": "ed339b16",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "330 meters high and is one of the most famous landmarks in the world\n"
+     ]
+    }
+   ],
+   "source": [
+    "from langchain_community.llms import VLLMOpenAI\n",
+    "\n",
+    "llm = VLLMOpenAI(\n",
+    "    openai_api_key=\"EMPTY\",\n",
+    "    openai_api_base=\"http://localhost:8000/v1\",\n",
+    "    model_name=\"mistralai/Mistral-7B-Instruct-v0.3\",\n",
+    "    model_kwargs={\"stop\": [\".\"]},\n",
+    ")\n",
+    "\n",
+    "print(llm.invoke(\"Eiffel Tower is \")) "
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "b64a8717",
+   "metadata": {},
+   "source": [
+    "## **LoRA adapter**\n",
+    "\n",
+    "LoRA adapters can be used with any vLLM model that implements SupportsLoRA."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "392247f7",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "from langchain_community.llms import VLLM\n",
+    "from vllm.lora.request import LoRARequest\n",
+    "\n",
+    "llm = VLLM(\n",
+    "    model=\"meta-llama/Llama-3.2-3B-Instruct\",\n",
+    "    max_new_tokens=300,\n",
+    "    top_k=1,\n",
+    "    top_p=0.90,\n",
+    "    temperature=0.1,\n",
+    "    vllm_kwargs={\n",
+    "        \"gpu_memory_utilization\": 0.5,\n",
+    "        \"enable_lora\": True,\n",
+    "        \"max_model_len\": 350,\n",
+    "    },\n",
+    ")\n",
+    "\n",
+    "LoRA_ADAPTER_PATH = \"path/to/adapter\"\n",
+    "lora_adapter = LoRARequest(\"lora_adapter\", 1, LoRA_ADAPTER_PATH)\n",
+    "\n",
+    "print(\n",
+    "    llm.invoke(\"What are some popular Korean street foods?\", lora_request=lora_adapter)\n",
+    ")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "0316f3c6",
+   "metadata": {},
+   "source": [
+    "## **Best Practices**\n",
+    "\n",
+    "1. **Memory Management**: Monitor GPU memory usage with tools like `nvidia-smi`\n",
+    "2. **Batch Size Tuning**: Adjust batch size for optimal throughput if processing multiple requests\n",
+    "3. **Quantization**: Consider quantized models (like 4-bit or 8-bit) for larger models with limited GPU memory\n",
+    "4. **Caching**: Enable response caching for repetitive queries\n"
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "resumeAI",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.9.21"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
