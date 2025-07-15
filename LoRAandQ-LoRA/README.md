@@ -45,6 +45,10 @@ For a weight matrix $W \in \mathbb{R}^{d \times d}$:
   * $B \in \mathbb{R}^{r \times d}$
 * $r \ll d$ (typically 4, 8, 16)
 
+<p align="center">
+  <img src="./rblog3-03.png" alt="Animated Coding IMG" width="1000"/>
+</p>
+
 **Why "Low-Rank"?**
 Because the product $A \times B$ has rank ≤ $r$, forcing efficient, generalizable adaptations.
 
@@ -161,11 +165,6 @@ pip install torch transformers peft bitsandbytes trl
 ---
 
 ## 🔍 Technical Deep Dive
-
-<p align="center">
-  <img src="./rblog3-03.png" alt="Animated Coding IMG" width="1000"/>
-</p>
-
 
 ### Quantization Formats:
 
