@@ -46,7 +46,7 @@ For a weight matrix $W \in \mathbb{R}^{d \times d}$:
 * $r \ll d$ (typically 4, 8, 16)
 
 <p align="center">
-  <img src="./rblog3-03.png" alt="Animated Coding IMG" width="1000"/>
+  <img src="./rblog3-03.png" alt="Animated Coding IMG" width="600"/>
 </p>
 
 **Why "Low-Rank"?**
