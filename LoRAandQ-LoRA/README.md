@@ -19,6 +19,11 @@ Fine-tuning large language models (LLMs) like **LLaMA** or **GPT** traditionally
 
 ## 🔧 What is LoRA (Low-Rank Adaptation)?
 
+### 📊 LoRA-Diagram
+<p align="center">
+  <img src="./rblog3-03.png" alt="Animated Coding IMG" width="600"/>
+</p>
+
 ### 📝 Concept
 
 Instead of updating full weight matrices during fine-tuning:
@@ -44,10 +49,6 @@ For a weight matrix $W \in \mathbb{R}^{d \times d}$:
   * $A \in \mathbb{R}^{d \times r}$
   * $B \in \mathbb{R}^{r \times d}$
 * $r \ll d$ (typically 4, 8, 16)
-
-<p align="center">
-  <img src="./rblog3-03.png" alt="Animated Coding IMG" width="600"/>
-</p>
 
 **Why "Low-Rank"?**
 Because the product $A \times B$ has rank ≤ $r$, forcing efficient, generalizable adaptations.
