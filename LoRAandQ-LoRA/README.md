@@ -245,11 +245,11 @@ python merge_lora.py --base_model "model_path" \
 
 ## 💡 Key Takeaways
 
-✅ LoRA trains <1% of parameters
-✅ QLoRA uses 4-bit models for major memory savings
-✅ Comparable performance to full fine-tuning
-✅ Fine-tune 13B–70B models on a single GPU
-✅ Extremely flexible, efficient, and production-friendly
+- LoRA trains <1% of parameters
+- QLoRA uses 4-bit models for major memory savings
+- Comparable performance to full fine-tuning
+- Fine-tune 13B–70B models on a single GPU
+- Extremely flexible, efficient, and production-friendly
 
 ---
 
