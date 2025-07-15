@@ -162,6 +162,11 @@ pip install torch transformers peft bitsandbytes trl
 
 ## 🔍 Technical Deep Dive
 
+<p align="center">
+  <img src="./rblog3-03.png" alt="Animated Coding IMG" width="1000"/>
+</p>
+
+
 ### Quantization Formats:
 
 * `FP16`: 16-bit floating point
